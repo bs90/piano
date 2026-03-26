@@ -195,12 +195,7 @@ function getClefMode() {
 function drawNoteForMode(svg, note, color) {
   const mode = getClefMode();
   if (mode === 'treble') drawNoteOnTreble(svg, note, color);
-  else if (mode === 'bass') drawNoteOnBass(svg, note, color);
-  else {
-    // Both staves shown, but note only on the randomly picked one
-    if (activeClef === 'treble') drawNoteOnTreble(svg, note, color);
-    else drawNoteOnBass(svg, note, color);
-  }
+  else drawNoteOnBass(svg, note, color);
 }
 
 function renderStaff(target, wrongNote, isCorrect) {
@@ -309,10 +304,7 @@ PLAYABLE_NOTES.forEach((note, i) => {
 function setDefaultRange() {
   const mode = getClefMode();
   let lo, hi;
-  if (mode === 'both') {
-    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
-    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 5);
-  } else if (mode === 'bass') {
+  if (mode === 'bass') {
     lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
     hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
   } else {
