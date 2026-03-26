@@ -1,0 +1,145 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f5f0eb;
+  color: #333;
+}
+
+#app {
+  max-width: 1100px;
+  width: 100%;
+  padding: 2rem;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  text-align: center;
+}
+
+#main-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+#staff-area {
+  flex: 1;
+  min-width: 0;
+}
+
+#staff {
+  width: 100%;
+  height: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+#controls {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+#range-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+#range-select label {
+  font-size: 1.2rem;
+  color: #2c3e50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+#range-select select {
+  font-size: 1.2rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 2px solid #4a90d9;
+  background: white;
+  color: #333;
+  width: 100%;
+}
+
+#status {
+  text-align: center;
+}
+
+#feedback {
+  font-size: 1.8rem;
+  color: #7f8c8d;
+  min-height: 1.5em;
+  transition: color 0.2s;
+}
+
+#feedback.correct {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+#score {
+  font-size: 1.5rem;
+  margin-top: 0.3rem;
+  color: #4a90d9;
+  font-weight: bold;
+}
+
+#start-btn {
+  padding: 18px 40px;
+  font-size: 1.6rem;
+  border: none;
+  border-radius: 10px;
+  background: #4a90d9;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+}
+
+#start-btn:hover {
+  background: #357abd;
+}
+
+#start-btn:active {
+  transform: scale(0.97);
+}
+
+#start-btn.listening {
+  background: #e74c3c;
+}
+
+@media (max-width: 700px) {
+  #main-layout {
+    flex-direction: column;
+  }
+  #controls {
+    width: 100%;
+    max-width: 320px;
+  }
+  #app {
+    padding: 1rem;
+  }
+  h1 {
+    font-size: 1.8rem;
+  }
+}

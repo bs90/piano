@@ -1,0 +1,21 @@
+{
+  "name": "おんぷをよもう!",
+  "short_name": "おんぷ",
+  "description": "おんぷをよむれんしゅうアプリ",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f0eb",
+  "theme_color": "#4a90d9",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%234a90d9'/%3E%3Ctext x='96' y='140' text-anchor='middle' font-size='120' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%234a90d9'/%3E%3Ctext x='256' y='370' text-anchor='middle' font-size='320' fill='white'%3E%E2%99%AA%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4a90d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <title>おんぷをよもう!</title>
+</head>
+<body>
+  <div id="app">
+    <h1>おんぷをよもう!</h1>
+    <div id="main-layout">
+      <div id="staff-area">
+        <svg id="staff" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="controls">
+        <div id="range-select">
+          <label>ひくいおと:
+            <select id="range-low"></select>
+          </label>
+          <label>たかいおと:
+            <select id="range-high"></select>
+          </label>
+        </div>
+        <div id="status">
+          <p id="feedback">ボタンをおしてね</p>
+          <p id="score">てんすう: 0</p>
+        </div>
+        <button id="start-btn">はじめる</button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
