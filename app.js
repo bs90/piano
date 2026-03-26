@@ -29,28 +29,50 @@ function frequencyToNote(freq) {
 }
 
 // ============================================================
-// SVG Staff rendering
+// SVG Staff rendering — two separate staves side by side
 // ============================================================
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const STAFF_LINE_SPACING = 10;
-const STEP = STAFF_LINE_SPACING / 2; // 5px per diatonic step
-
-// Y positions: Treble staff top line (F5) to bottom line (E4)
-// Bass staff top line (A3) to bottom line (G2)
-const TREBLE_TOP = 50;   // top line of treble staff (F5)
-const BASS_TOP = 170;    // top line of bass staff (A3)
-const MIDDLE_C_Y = 145;  // C4 ledger line position (between the staves)
-
-// Staff position: number of diatonic steps above C4
-// C4=0, D4=1, E4=2, F4=3, G4=4, A4=5, B4=6, C5=7, ...
+const STEP = 6; // px per diatonic step
 const DIATONIC = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+
+// Treble staff: 5 lines = E4, G4, B4, D5, F5
+// Reference: B4 (middle line) = diatonic step 6 from C4
+// Bass staff: 5 lines = G2, B2, D3, F3, A3
+// Reference: D3 (middle line) = diatonic step -5 from C4
+
+// Layout: two staves side by side
+// Left staff (treble): x range 10..380
+// Right staff (bass):  x range 420..790
+const TREBLE_X1 = 50;
+const TREBLE_X2 = 370;
+const BASS_X1 = 450;
+const BASS_X2 = 770;
+const STAFF_CENTER_Y = 80; // vertical center of each 5-line staff
+
+// Treble lines relative positions from center (B4=0): F5=+4, D5=+2, B4=0, G4=-2, E4=-4
+// Bass lines relative positions from center (D3=0): A3=+2, F3=+1...
+// Actually let me use absolute diatonic positions from C4
 
 function noteToStaffPos(note) {
   return DIATONIC[note.name] + (note.octave - 4) * 7;
 }
 
-function staffPosToY(pos) {
-  return MIDDLE_C_Y - pos * STEP;
+// Treble: lines at positions 2(E4), 4(G4), 6(B4), 8(D5), 10(F5)
+// Center of treble = position 6 (B4)
+const TREBLE_CENTER_POS = 6;
+const TREBLE_LINE_POSITIONS = [2, 4, 6, 8, 10];
+
+// Bass: lines at positions -10(G2), -8(B2), -6(D3), -4(F3), -2(A3)
+// Center of bass = position -6 (D3)
+const BASS_CENTER_POS = -6;
+const BASS_LINE_POSITIONS = [-10, -8, -6, -4, -2];
+
+function treblePosToY(pos) {
+  return STAFF_CENTER_Y - (pos - TREBLE_CENTER_POS) * STEP;
+}
+
+function bassPosToY(pos) {
+  return STAFF_CENTER_Y - (pos - BASS_CENTER_POS) * STEP;
 }
 
 function svgEl(tag, attrs) {
@@ -59,119 +81,148 @@ function svgEl(tag, attrs) {
   return el;
 }
 
-function drawStaffLines(svg) {
-  // Treble: lines at E4, G4, B4, D5, F5 → staff positions 2,4,6,8,10
-  const treblePositions = [2, 4, 6, 8, 10];
-  // Bass: lines at G2, B2, D3, F3, A3 → staff positions -7,-5,-3,-1,1  (wait, let me recalculate)
-  // G2 = DIATONIC.G + (2-4)*7 = 4 - 14 = -10
-  // B2 = 6 - 14 = -8
-  // D3 = 1 - 7 = -6
-  // F3 = 3 - 7 = -4
-  // A3 = 5 - 7 = -2
-  const bassPositions = [-10, -8, -6, -4, -2];
-
-  const allPositions = [...treblePositions, ...bassPositions];
-  for (const pos of allPositions) {
-    const y = staffPosToY(pos);
+function drawOneStaff(svg, x1, x2, linePositions, posToY) {
+  for (const pos of linePositions) {
+    const y = posToY(pos);
     svg.appendChild(svgEl('line', {
-      x1: 60, y1: y, x2: 360, y2: y,
+      x1, y1: y, x2, y2: y,
       stroke: '#333', 'stroke-width': 1
     }));
   }
+  // Left barline
+  const top = posToY(linePositions[linePositions.length - 1]);
+  const bottom = posToY(linePositions[0]);
+  svg.appendChild(svgEl('line', {
+    x1, y1: top, x2: x1, y2: bottom,
+    stroke: '#333', 'stroke-width': 2
+  }));
+}
 
-  // Left barlines (separate for each staff)
-  const trebleTop = staffPosToY(10);
-  const trebleBottom = staffPosToY(2);
-  svg.appendChild(svgEl('line', {
-    x1: 60, y1: trebleTop, x2: 60, y2: trebleBottom,
-    stroke: '#333', 'stroke-width': 2
-  }));
-  const bassTop = staffPosToY(-2);
-  const bassBottom = staffPosToY(-10);
-  svg.appendChild(svgEl('line', {
-    x1: 60, y1: bassTop, x2: 60, y2: bassBottom,
-    stroke: '#333', 'stroke-width': 2
-  }));
+function getBassXOffset() {
+  return getClefMode() === 'bass' ? TREBLE_X1 - BASS_X1 : 0;
 }
 
 function drawClefs(svg) {
-  // Treble clef - the curl wraps around the G4 line
-  const trebleG = staffPosToY(4);
-  const treble = svgEl('text', {
-    x: 62, y: trebleG + 10,
-    'font-size': '72',
-    fill: '#333',
-    'font-family': 'serif'
-  });
-  treble.textContent = '\u{1D11E}';
-  svg.appendChild(treble);
-
-  // Bass clef - positioned on F3 line (staff pos -4)
-  const bassF = staffPosToY(-4);
-  const bass = svgEl('text', {
-    x: 62, y: bassF + 18,
-    'font-size': '40',
-    fill: '#333',
-    'font-family': 'serif'
-  });
-  bass.textContent = '\u{1D122}';
-  svg.appendChild(bass);
+  const mode = getClefMode();
+  if (mode === 'treble' || mode === 'both') {
+    const gY = treblePosToY(4);
+    const treble = svgEl('text', {
+      x: TREBLE_X1 + 2, y: gY + 10,
+      'font-size': '72',
+      fill: '#333',
+      'font-family': 'serif'
+    });
+    treble.textContent = '\u{1D11E}';
+    svg.appendChild(treble);
+  }
+  if (mode === 'bass' || mode === 'both') {
+    const off = getBassXOffset();
+    const fY = bassPosToY(-4);
+    const bass = svgEl('text', {
+      x: BASS_X1 + off + 2, y: fY + 18,
+      'font-size': '40',
+      fill: '#333',
+      'font-family': 'serif'
+    });
+    bass.textContent = '\u{1D122}';
+    svg.appendChild(bass);
+  }
 }
 
-function drawLedgerLines(svg, pos, x) {
-  // Ledger lines above treble staff
-  if (pos > 10) {
-    for (let p = 12; p <= pos; p += 2) {
-      const ly = staffPosToY(p);
+function drawLedgerLinesForStaff(svg, pos, x, linePositions, posToY) {
+  const topLine = linePositions[linePositions.length - 1];
+  const bottomLine = linePositions[0];
+  // Above staff
+  if (pos > topLine) {
+    for (let p = topLine + 2; p <= pos; p += 2) {
+      const ly = posToY(p);
       svg.appendChild(svgEl('line', {
         x1: x - 15, y1: ly, x2: x + 15, y2: ly,
         stroke: '#333', 'stroke-width': 1
       }));
     }
   }
-  // Ledger lines below bass staff
-  if (pos < -10) {
-    for (let p = -12; p >= pos; p -= 2) {
-      const ly = staffPosToY(p);
+  // Below staff
+  if (pos < bottomLine) {
+    for (let p = bottomLine - 2; p >= pos; p -= 2) {
+      const ly = posToY(p);
       svg.appendChild(svgEl('line', {
         x1: x - 15, y1: ly, x2: x + 15, y2: ly,
         stroke: '#333', 'stroke-width': 1
       }));
     }
   }
-  // Middle C ledger line
-  if (pos === 0) {
-    const y = staffPosToY(0);
-    svg.appendChild(svgEl('line', {
-      x1: x - 15, y1: y, x2: x + 15, y2: y,
-      stroke: '#333', 'stroke-width': 1
-    }));
+  // On a ledger line position (even pos outside staff)
+  if (pos % 2 === 0 && pos > bottomLine && pos < topLine) {
+    // inside staff, no ledger needed
   }
 }
 
-function drawNoteHead(svg, note, x, color) {
+function drawNoteOnTreble(svg, note, color) {
   const pos = noteToStaffPos(note);
-  const y = staffPosToY(pos);
-  drawLedgerLines(svg, pos, x);
-  const noteHead = svgEl('ellipse', {
+  const y = treblePosToY(pos);
+  const x = (TREBLE_X1 + TREBLE_X2) / 2 + 20;
+  drawLedgerLinesForStaff(svg, pos, x, TREBLE_LINE_POSITIONS, treblePosToY);
+  svg.appendChild(svgEl('ellipse', {
     cx: x, cy: y, rx: 8, ry: 5.5,
     transform: `rotate(-15, ${x}, ${y})`,
     fill: color
-  });
-  svg.appendChild(noteHead);
+  }));
+}
+
+function drawNoteOnBass(svg, note, color) {
+  const pos = noteToStaffPos(note);
+  const y = bassPosToY(pos);
+  const off = getBassXOffset();
+  const x = (BASS_X1 + BASS_X2) / 2 + 20 + off;
+  drawLedgerLinesForStaff(svg, pos, x, BASS_LINE_POSITIONS, bassPosToY);
+  svg.appendChild(svgEl('ellipse', {
+    cx: x, cy: y, rx: 8, ry: 5.5,
+    transform: `rotate(-15, ${x}, ${y})`,
+    fill: color
+  }));
+}
+
+function drawNoteOnBothStaves(svg, note, color) {
+  drawNoteOnTreble(svg, note, color);
+  drawNoteOnBass(svg, note, color);
+}
+
+function getClefMode() {
+  return document.getElementById('clef-select').value;
+}
+
+function drawNoteForMode(svg, note, color) {
+  const mode = getClefMode();
+  if (mode === 'treble') drawNoteOnTreble(svg, note, color);
+  else if (mode === 'bass') drawNoteOnBass(svg, note, color);
+  else drawNoteOnBothStaves(svg, note, color);
 }
 
 function renderStaff(target, wrongNote, isCorrect) {
   const svg = document.getElementById('staff');
   svg.innerHTML = '';
-  drawStaffLines(svg);
+  const mode = getClefMode();
+  // Adjust viewBox for single vs both staves
+  if (mode === 'both') {
+    svg.setAttribute('viewBox', '0 0 800 160');
+  } else {
+    svg.setAttribute('viewBox', '0 0 400 160');
+  }
+  if (mode === 'treble' || mode === 'both') {
+    drawOneStaff(svg, TREBLE_X1, TREBLE_X2, TREBLE_LINE_POSITIONS, treblePosToY);
+  }
+  if (mode === 'bass' || mode === 'both') {
+    const off = getBassXOffset();
+    drawOneStaff(svg, BASS_X1 + off, BASS_X2 + off, BASS_LINE_POSITIONS, bassPosToY);
+  }
   drawClefs(svg);
   if (target) {
     const targetColor = isCorrect ? '#27ae60' : '#000';
-    drawNoteHead(svg, target, 210, targetColor);
+    drawNoteForMode(svg, target, targetColor);
   }
   if (wrongNote) {
-    drawNoteHead(svg, wrongNote, 210, '#e74c3c');
+    drawNoteForMode(svg, wrongNote, '#e74c3c');
   }
 }
 
