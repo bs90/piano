@@ -306,11 +306,11 @@ function setDefaultRange() {
   const mode = getClefMode();
   let lo, hi;
   if (mode === 'bass') {
-    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 2);
+    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
     hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
   } else {
     lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
-    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 6);
+    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 5);
   }
   rangeLowEl.value = lo >= 0 ? lo : 0;
   rangeHighEl.value = hi >= 0 ? hi : PLAYABLE_NOTES.length - 1;
