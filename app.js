@@ -302,8 +302,8 @@ PLAYABLE_NOTES.forEach((note, i) => {
 });
 
 // Default: C3 to C5
-const defaultLow = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
-const defaultHigh = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 5);
+const defaultLow = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
+const defaultHigh = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 6);
 rangeLowEl.value = defaultLow >= 0 ? defaultLow : 0;
 rangeHighEl.value = defaultHigh >= 0 ? defaultHigh : PLAYABLE_NOTES.length - 1;
 
