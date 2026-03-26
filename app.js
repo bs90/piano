@@ -196,7 +196,11 @@ function drawNoteForMode(svg, note, color) {
   const mode = getClefMode();
   if (mode === 'treble') drawNoteOnTreble(svg, note, color);
   else if (mode === 'bass') drawNoteOnBass(svg, note, color);
-  else drawNoteOnBothStaves(svg, note, color);
+  else {
+    // Both staves shown, but note only on the randomly picked one
+    if (activeClef === 'treble') drawNoteOnTreble(svg, note, color);
+    else drawNoteOnBass(svg, note, color);
+  }
 }
 
 function renderStaff(target, wrongNote, isCorrect) {
@@ -305,7 +309,10 @@ PLAYABLE_NOTES.forEach((note, i) => {
 function setDefaultRange() {
   const mode = getClefMode();
   let lo, hi;
-  if (mode === 'bass') {
+  if (mode === 'both') {
+    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
+    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 5);
+  } else if (mode === 'bass') {
     lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 3);
     hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
   } else {
@@ -336,6 +343,7 @@ function getPlayableRange() {
 // ============================================================
 let state = 'IDLE';
 let targetNote = null;
+let activeClef = 'treble'; // which clef to show the note on (when mode=both)
 let score = 0;
 let matchCount = 0;
 let wrongCount = 0;
@@ -355,6 +363,10 @@ function pickRandomNote() {
   const range = getPlayableRange();
   const idx = Math.floor(Math.random() * range.length);
   targetNote = range[idx];
+  // When both clefs, randomly pick one to show
+  if (getClefMode() === 'both') {
+    activeClef = Math.random() < 0.5 ? 'treble' : 'bass';
+  }
   renderStaff(targetNote, null, false);
   feedbackEl.textContent = 'きいているよ...';
   feedbackEl.classList.remove('correct');
