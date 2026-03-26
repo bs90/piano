@@ -302,10 +302,26 @@ PLAYABLE_NOTES.forEach((note, i) => {
 });
 
 // Default: C3 to C5
-const defaultLow = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
-const defaultHigh = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 6);
-rangeLowEl.value = defaultLow >= 0 ? defaultLow : 0;
-rangeHighEl.value = defaultHigh >= 0 ? defaultHigh : PLAYABLE_NOTES.length - 1;
+function setDefaultRange() {
+  const mode = getClefMode();
+  let lo, hi;
+  if (mode === 'bass') {
+    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 2);
+    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
+  } else {
+    lo = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 4);
+    hi = PLAYABLE_NOTES.findIndex((n) => n.name === 'C' && n.octave === 6);
+  }
+  rangeLowEl.value = lo >= 0 ? lo : 0;
+  rangeHighEl.value = hi >= 0 ? hi : PLAYABLE_NOTES.length - 1;
+}
+
+setDefaultRange();
+
+document.getElementById('clef-select').addEventListener('change', () => {
+  setDefaultRange();
+  renderStaff(null, null, false);
+});
 
 function getPlayableRange() {
   const lo = parseInt(rangeLowEl.value);
