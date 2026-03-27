@@ -25,7 +25,7 @@ function frequencyToNote(freq) {
       closest = note;
     }
   }
-  return minDist < 50 ? closest : null;
+  return minDist < 40 ? closest : null; // tighter tolerance: 40 cents
 }
 
 // ============================================================
@@ -229,59 +229,102 @@ function renderStaff(target, wrongNote, isCorrect) {
 // Pitch Detection (Autocorrelation)
 // ============================================================
 function autoCorrelate(buffer, sampleRate) {
+  const len = buffer.length;
+
+  // 1. Check signal level
   let rms = 0;
-  for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
-  rms = Math.sqrt(rms / buffer.length);
-  if (rms < 0.03) return -1; // higher threshold — only respond to clear piano sound
+  for (let i = 0; i < len; i++) rms += buffer[i] * buffer[i];
+  rms = Math.sqrt(rms / len);
+  if (rms < 0.02) return -1;
 
-  // Find a good starting point and ending point by trimming silence
-  const threshold = 0.2;
-  let start = 0;
-  let end = buffer.length - 1;
-  while (start < buffer.length / 2 && Math.abs(buffer[start]) < threshold) start++;
-  while (end > buffer.length / 2 && Math.abs(buffer[end]) < threshold) end--;
-
-  if (end - start < 100) return -1;
-
-  const len = end - start;
-  const corr = new Float32Array(len);
-
-  for (let lag = 0; lag < len; lag++) {
-    let sum = 0;
-    for (let i = 0; i < len - lag; i++) {
-      sum += buffer[start + i] * buffer[start + i + lag];
+  // 2. Normalized Square Difference Function (NSDF)
+  // More robust than raw autocorrelation — less prone to octave errors
+  const nsdf = new Float32Array(len);
+  for (let tau = 0; tau < len; tau++) {
+    let acf = 0;
+    let divisor = 0;
+    for (let i = 0; i < len - tau; i++) {
+      acf += buffer[i] * buffer[i + tau];
+      divisor += buffer[i] * buffer[i] + buffer[i + tau] * buffer[i + tau];
     }
-    corr[lag] = sum;
+    nsdf[tau] = divisor > 0 ? 2 * acf / divisor : 0;
   }
 
-  // Walk past the initial positive region
-  let d = 0;
-  while (d < len - 1 && corr[d] > corr[d + 1]) d++;
+  // 3. Find peaks in NSDF using zero-crossing method
+  // Look for positive regions after first zero crossing
+  const peaks = [];
+  let posStart = -1;
 
-  // Find the highest peak after that
-  let maxVal = -1;
-  let maxPos = -1;
-  for (let i = d; i < len; i++) {
-    if (corr[i] > maxVal) {
-      maxVal = corr[i];
-      maxPos = i;
+  // Skip initial positive region (tau=0 is always 1.0)
+  let tau = 1;
+  while (tau < len && nsdf[tau] > 0) tau++;
+
+  // Now find peaks in subsequent positive regions
+  for (; tau < len - 1; tau++) {
+    if (nsdf[tau] > 0 && posStart < 0) {
+      posStart = tau;
+    }
+    if (nsdf[tau] <= 0 && posStart >= 0) {
+      // End of positive region — find max in this region
+      let bestVal = -1;
+      let bestPos = posStart;
+      for (let j = posStart; j < tau; j++) {
+        if (nsdf[j] > bestVal) {
+          bestVal = nsdf[j];
+          bestPos = j;
+        }
+      }
+      peaks.push({ pos: bestPos, val: bestVal });
+      posStart = -1;
+    }
+  }
+  // Handle last positive region
+  if (posStart >= 0) {
+    let bestVal = -1;
+    let bestPos = posStart;
+    for (let j = posStart; j < len; j++) {
+      if (nsdf[j] > bestVal) {
+        bestVal = nsdf[j];
+        bestPos = j;
+      }
+    }
+    peaks.push({ pos: bestPos, val: bestVal });
+  }
+
+  if (peaks.length === 0) return -1;
+
+  // 4. Pick the first peak above a confidence threshold
+  // (key insight: first strong peak = fundamental, avoids octave errors)
+  const highestVal = Math.max(...peaks.map((p) => p.val));
+  const threshold = highestVal * 0.8;
+  let chosen = null;
+  for (const p of peaks) {
+    if (p.val >= threshold) {
+      chosen = p;
+      break;
     }
   }
 
-  if (maxPos <= 0) return -1;
+  if (!chosen || chosen.val < 0.3) return -1; // low confidence
 
-  // Parabolic interpolation
-  if (maxPos > 0 && maxPos < len - 1) {
-    const a = corr[maxPos - 1];
-    const b = corr[maxPos];
-    const c = corr[maxPos + 1];
+  // 5. Parabolic interpolation for sub-sample accuracy
+  let bestPos = chosen.pos;
+  if (bestPos > 0 && bestPos < len - 1) {
+    const a = nsdf[bestPos - 1];
+    const b = nsdf[bestPos];
+    const c = nsdf[bestPos + 1];
     const denom = 2 * (a - 2 * b + c);
     if (denom !== 0) {
-      maxPos += (a - c) / denom;
+      bestPos += (a - c) / denom;
     }
   }
 
-  return sampleRate / maxPos;
+  const freq = sampleRate / bestPos;
+
+  // 6. Sanity check: piano range 27.5 Hz (A0) to 4186 Hz (C8)
+  if (freq < 27 || freq > 4200) return -1;
+
+  return freq;
 }
 
 // ============================================================
@@ -339,7 +382,7 @@ let activeClef = 'treble'; // which clef to show the note on (when mode=both)
 let score = 0;
 let matchCount = 0;
 let wrongCount = 0;
-const REQUIRED_MATCHES = 5;
+const REQUIRED_MATCHES = 6;
 const WIN_SCORE = 10;
 
 let audioCtx = null;
