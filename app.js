@@ -198,20 +198,28 @@ function drawNoteForMode(svg, note, color) {
   else drawNoteOnBass(svg, note, color);
 }
 
-function renderStaff(target, wrongNote, isCorrect) {
+function drawNoteLabel(svg, note, color) {
+  const jp = JP_NAMES[note.name] || note.name;
+  const label = svgEl('text', {
+    x: 200, y: 18,
+    'text-anchor': 'middle',
+    'font-size': '18',
+    'font-weight': 'bold',
+    fill: color
+  });
+  label.textContent = `${jp}${note.octave} (${note.name}${note.octave})`;
+  svg.appendChild(label);
+}
+
+function renderStaff(target, wrongNote, isCorrect, idleNote) {
   const svg = document.getElementById('staff');
   svg.innerHTML = '';
   const mode = getClefMode();
-  // Adjust viewBox for single vs both staves
-  if (mode === 'both') {
-    svg.setAttribute('viewBox', '0 0 800 160');
-  } else {
-    svg.setAttribute('viewBox', '0 0 400 160');
-  }
-  if (mode === 'treble' || mode === 'both') {
+  svg.setAttribute('viewBox', '0 0 400 180');
+  if (mode === 'treble') {
     drawOneStaff(svg, TREBLE_X1, TREBLE_X2, TREBLE_LINE_POSITIONS, treblePosToY);
   }
-  if (mode === 'bass' || mode === 'both') {
+  if (mode === 'bass') {
     const off = getBassXOffset();
     drawOneStaff(svg, BASS_X1 + off, BASS_X2 + off, BASS_LINE_POSITIONS, bassPosToY);
   }
@@ -222,6 +230,12 @@ function renderStaff(target, wrongNote, isCorrect) {
   }
   if (wrongNote) {
     drawNoteForMode(svg, wrongNote, '#e74c3c');
+    drawNoteLabel(svg, wrongNote, '#e74c3c');
+  }
+  // IDLE mode: show detected note on staff with label
+  if (idleNote) {
+    drawNoteForMode(svg, idleNote, '#4a90d9');
+    drawNoteLabel(svg, idleNote, '#4a90d9');
   }
 }
 
@@ -381,7 +395,6 @@ let targetNote = null;
 let activeClef = 'treble';
 let score = 0;
 const HOLD_TIME = 2000; // 2 seconds sustained note required
-const WIN_SCORE = 10;
 
 let currentDetected = null;  // currently sustained note
 let sustainStart = 0;        // timestamp when current note started
@@ -421,7 +434,9 @@ function handleDetected(freq) {
 
   // Show detected note in IDLE mode (before game starts)
   if (state === 'IDLE') {
-    feedbackEl.textContent = `${jp}${detected.octave}`;
+    if (!detected.name.includes('#')) {
+      renderStaff(null, null, false, detected);
+    }
     return;
   }
 
@@ -452,7 +467,8 @@ function handleDetected(freq) {
       score++;
       scoreEl.textContent = `てんすう: ${score}`;
       renderStaff(targetNote, null, true);
-      if (score >= WIN_SCORE) {
+      const winScore = parseInt(document.getElementById('win-score').value);
+      if (score >= winScore) {
         feedbackEl.textContent = 'やったね！かち！';
         feedbackEl.classList.add('correct');
         setTimeout(() => stopGame(), 1500);
@@ -494,6 +510,7 @@ function detectLoop() {
     sustainStart = 0;
     if (state === 'IDLE') {
       feedbackEl.textContent = 'ボタンをおしてね';
+      renderStaff(null, null, false, null);
     }
   }
   animFrameId = requestAnimationFrame(detectLoop);
@@ -517,12 +534,15 @@ async function initMic() {
   }
 }
 
+const rangeSelectEl = document.getElementById('range-select');
+
 function startGame() {
   state = 'LISTENING';
   score = 0;
   scoreEl.textContent = `てんすう: ${score}`;
   startBtn.textContent = 'やめる';
   startBtn.classList.add('listening');
+  rangeSelectEl.style.display = 'none';
   pickRandomNote();
 }
 
@@ -532,6 +552,7 @@ function stopGame() {
   startBtn.classList.remove('listening');
   feedbackEl.textContent = 'ボタンをおしてね';
   feedbackEl.classList.remove('correct');
+  rangeSelectEl.style.display = '';
   targetNote = null;
   renderStaff(null, null, false);
 }
