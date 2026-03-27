@@ -458,45 +458,41 @@ function handleDetected(freq) {
   // Show detected note on staff
   const isCorrect = detected.name === targetNote.name && detected.octave === targetNote.octave;
 
-  if (isCorrect) {
-    if (!detected.name.includes('#')) {
-      renderStaff(targetNote, null, false);
-    }
-    if (held >= HOLD_TIME) {
-      state = 'CORRECT';
-      score++;
-      scoreEl.textContent = `てんすう: ${score}`;
-      renderStaff(targetNote, null, true);
-      const winScore = parseInt(document.getElementById('win-score').value);
-      if (score >= winScore) {
-        feedbackEl.textContent = 'やったね！かち！';
-        feedbackEl.classList.add('correct');
-        setTimeout(() => stopGame(), 1500);
-      } else {
-        feedbackEl.textContent = 'すごい！';
-        feedbackEl.classList.add('correct');
-        setTimeout(() => {
-          state = 'LISTENING';
-          pickRandomNote();
-        }, 800);
-      }
+  if (held < HOLD_TIME) {
+    // Still waiting — don't show anything yet
+    renderStaff(targetNote, null, false);
+    feedbackEl.textContent = 'きいているよ...';
+  } else if (isCorrect) {
+    state = 'CORRECT';
+    score++;
+    scoreEl.textContent = `てんすう: ${score}`;
+    renderStaff(targetNote, null, true);
+    drawNoteLabel(document.getElementById('staff'), detected, '#27ae60');
+    const winScore = parseInt(document.getElementById('win-score').value);
+    if (score >= winScore) {
+      feedbackEl.textContent = 'やったね！かち！';
+      feedbackEl.classList.add('correct');
+      setTimeout(() => stopGame(), 1500);
     } else {
-      // Show progress
-      const pct = Math.floor(held / HOLD_TIME * 100);
-      feedbackEl.textContent = `${jp}${detected.octave}... ${pct}%`;
+      feedbackEl.textContent = 'すごい！';
+      feedbackEl.classList.add('correct');
+      setTimeout(() => {
+        state = 'LISTENING';
+        pickRandomNote();
+      }, 800);
     }
   } else {
-    // Wrong note
+    // Wrong note — show it after hold time
     if (!detected.name.includes('#')) {
       renderStaff(targetNote, detected, false);
+      drawNoteLabel(document.getElementById('staff'), detected, '#e74c3c');
     }
-    if (held >= HOLD_TIME && !wrongDeducted) {
+    if (!wrongDeducted) {
       wrongDeducted = true;
       score = Math.max(0, score - 1);
       scoreEl.textContent = `てんすう: ${score}`;
     }
-    const pct = Math.floor(Math.min(held, HOLD_TIME) / HOLD_TIME * 100);
-    feedbackEl.textContent = `${jp}${detected.octave}... ${pct}%`;
+    feedbackEl.textContent = `${jp}${detected.octave}`;
   }
 }
 
