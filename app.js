@@ -394,7 +394,7 @@ let state = 'IDLE'; // IDLE (mic on, no game), LISTENING, CORRECT
 let targetNote = null;
 let activeClef = 'treble';
 let score = 0;
-const HOLD_TIME = 2000; // 2 seconds sustained note required
+const HOLD_TIME = 500; // 0.5 seconds sustained note required
 
 let currentDetected = null;  // currently sustained note
 let sustainStart = 0;        // timestamp when current note started
