@@ -376,14 +376,16 @@ function getPlayableRange() {
 // ============================================================
 // Game State
 // ============================================================
-let state = 'IDLE';
+let state = 'IDLE'; // IDLE (mic on, no game), LISTENING, CORRECT
 let targetNote = null;
-let activeClef = 'treble'; // which clef to show the note on (when mode=both)
+let activeClef = 'treble';
 let score = 0;
-let matchCount = 0;
-let wrongCount = 0;
-const REQUIRED_MATCHES = 6;
+const HOLD_TIME = 2000; // 2 seconds sustained note required
 const WIN_SCORE = 10;
+
+let currentDetected = null;  // currently sustained note
+let sustainStart = 0;        // timestamp when current note started
+let wrongDeducted = false;   // already deducted for this wrong note
 
 let audioCtx = null;
 let analyser = null;
@@ -398,27 +400,54 @@ function pickRandomNote() {
   const range = getPlayableRange();
   const idx = Math.floor(Math.random() * range.length);
   targetNote = range[idx];
-  // When both clefs, randomly pick one to show
-  if (getClefMode() === 'both') {
-    activeClef = Math.random() < 0.5 ? 'treble' : 'bass';
-  }
   renderStaff(targetNote, null, false);
   feedbackEl.textContent = 'きいているよ...';
   feedbackEl.classList.remove('correct');
-  matchCount = 0;
-  wrongCount = 0;
+  currentDetected = null;
+  sustainStart = 0;
+  wrongDeducted = false;
 }
 
 function handleDetected(freq) {
+  const detected = frequencyToNote(freq);
+  if (!detected) {
+    currentDetected = null;
+    sustainStart = 0;
+    return;
+  }
+
+  const now = performance.now();
+  const jp = JP_NAMES[detected.name] || detected.name;
+
+  // Show detected note in IDLE mode (before game starts)
+  if (state === 'IDLE') {
+    feedbackEl.textContent = `${jp}${detected.octave}`;
+    return;
+  }
+
   if (state !== 'LISTENING') return;
 
-  const detected = frequencyToNote(freq);
-  if (!detected) return;
+  // Check if same note as before
+  const sameNote = currentDetected &&
+    currentDetected.name === detected.name &&
+    currentDetected.octave === detected.octave;
 
-  if (detected.name === targetNote.name && detected.octave === targetNote.octave) {
-    wrongCount = 0;
-    matchCount++;
-    if (matchCount >= REQUIRED_MATCHES) {
+  if (!sameNote) {
+    currentDetected = detected;
+    sustainStart = now;
+    wrongDeducted = false;
+  }
+
+  const held = now - sustainStart;
+
+  // Show detected note on staff
+  const isCorrect = detected.name === targetNote.name && detected.octave === targetNote.octave;
+
+  if (isCorrect) {
+    if (!detected.name.includes('#')) {
+      renderStaff(targetNote, null, false);
+    }
+    if (held >= HOLD_TIME) {
       state = 'CORRECT';
       score++;
       scoreEl.textContent = `てんすう: ${score}`;
@@ -426,7 +455,7 @@ function handleDetected(freq) {
       if (score >= WIN_SCORE) {
         feedbackEl.textContent = 'やったね！かち！';
         feedbackEl.classList.add('correct');
-        setTimeout(() => stopListening(), 1500);
+        setTimeout(() => stopGame(), 1500);
       } else {
         feedbackEl.textContent = 'すごい！';
         feedbackEl.classList.add('correct');
@@ -435,19 +464,23 @@ function handleDetected(freq) {
           pickRandomNote();
         }, 800);
       }
+    } else {
+      // Show progress
+      const pct = Math.floor(held / HOLD_TIME * 100);
+      feedbackEl.textContent = `${jp}${detected.octave}... ${pct}%`;
     }
   } else {
-    matchCount = 0;
-    wrongCount++;
-    // Deduct once after a few frames of sustained wrong note
-    if (wrongCount === REQUIRED_MATCHES) {
-      score = Math.max(0, score - 1);
-      scoreEl.textContent = `てんすう: ${score}`;
-    }
-    // Show wrong note in red
+    // Wrong note
     if (!detected.name.includes('#')) {
       renderStaff(targetNote, detected, false);
     }
+    if (held >= HOLD_TIME && !wrongDeducted) {
+      wrongDeducted = true;
+      score = Math.max(0, score - 1);
+      scoreEl.textContent = `てんすう: ${score}`;
+    }
+    const pct = Math.floor(Math.min(held, HOLD_TIME) / HOLD_TIME * 100);
+    feedbackEl.textContent = `${jp}${detected.octave}... ${pct}%`;
   }
 }
 
@@ -456,29 +489,27 @@ function detectLoop() {
   const freq = autoCorrelate(dataBuffer, audioCtx.sampleRate);
   if (freq > 0) {
     handleDetected(freq);
+  } else {
+    currentDetected = null;
+    sustainStart = 0;
+    if (state === 'IDLE') {
+      feedbackEl.textContent = 'ボタンをおしてね';
+    }
   }
   animFrameId = requestAnimationFrame(detectLoop);
 }
 
-async function startListening() {
+// Start mic immediately on page load
+async function initMic() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioCtx = new AudioContext();
     await audioCtx.resume();
-
     const source = audioCtx.createMediaStreamSource(stream);
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 8192; // larger buffer for accurate piano pitch detection
+    analyser.fftSize = 8192;
     source.connect(analyser);
-
     dataBuffer = new Float32Array(analyser.fftSize);
-
-    state = 'LISTENING';
-    score = 0;
-    scoreEl.textContent = `てんすう: ${score}`;
-    startBtn.textContent = 'やめる';
-    startBtn.classList.add('listening');
-    pickRandomNote();
     detectLoop();
   } catch (err) {
     feedbackEl.textContent = 'マイクがつかえません。きょかしてね。';
@@ -486,23 +517,35 @@ async function startListening() {
   }
 }
 
-function stopListening() {
+function startGame() {
+  state = 'LISTENING';
+  score = 0;
+  scoreEl.textContent = `てんすう: ${score}`;
+  startBtn.textContent = 'やめる';
+  startBtn.classList.add('listening');
+  pickRandomNote();
+}
+
+function stopGame() {
   state = 'IDLE';
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  if (audioCtx) audioCtx.close();
-  audioCtx = null;
   startBtn.textContent = 'はじめる';
   startBtn.classList.remove('listening');
   feedbackEl.textContent = 'ボタンをおしてね';
   feedbackEl.classList.remove('correct');
+  targetNote = null;
   renderStaff(null, null, false);
 }
 
 startBtn.addEventListener('click', () => {
   if (state === 'IDLE') {
-    startListening();
+    // Init mic on first click if not yet
+    if (!audioCtx) {
+      initMic().then(() => startGame());
+    } else {
+      startGame();
+    }
   } else {
-    stopListening();
+    stopGame();
   }
 });
 
@@ -510,6 +553,7 @@ startBtn.addEventListener('click', () => {
 // Init
 // ============================================================
 renderStaff(null, null, false);
+initMic();
 
 // Register service worker
 if ('serviceWorker' in navigator) {
